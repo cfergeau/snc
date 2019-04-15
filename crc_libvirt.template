@@ -75,8 +75,7 @@ cluster_create()
 {
     sudo virsh net-define << EOF
 <network>
-  <name>test1</name>
-  <uuid>b56e5d7f-296e-41ea-9bc3-5d374f8a168f</uuid>
+  <name>crc-net</name>
   <forward mode='nat'>
     <nat>
       <port start='1024' end='65535'/>
@@ -99,7 +98,7 @@ cluster_create()
   </ip>
 </network>
 EOF
-    sudo virsh net-start test1
+    sudo virsh net-start crc-net
 
     size=$(stat -Lc%s crc)
     sudo virsh vol-create-as default crc $size --format qcow2
@@ -140,7 +139,7 @@ EOF
     </controller>
     <interface type='network'>
       ReplaceMeWithCorrectMac
-      <source network='test1'/>
+      <source network='crc-net'/>
       <model type='virtio'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
@@ -198,11 +197,11 @@ cluster_delete()
 {
     sudo virsh destroy crc
     sudo virsh undefine crc
-    
+
     sudo virsh vol-delete --pool default crc
 
-    sudo virsh net-destroy test1
-    sudo virsh net-undefine test1
+    sudo virsh net-destroy crc-net
+    sudo virsh net-undefine crc-net
 }
 
 
