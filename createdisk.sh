@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 export LC_ALL=C
 export LANG=C
 
@@ -271,7 +273,9 @@ certImage=$(${OC} --kubeconfig $1/auth/kubeconfig adm release info --image-for=c
 ${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- sudo podman tag $certImage openshift/cert-recovery
 
 # Remove unused images from container storage
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo crictl images -q | xargs -n 1 sudo crictl rmi 2>/dev/null'
+# This passes *all* available images to `crictl rmi`, but deleting an image in use will fail, thus
+# the end result of this command will be to only remove the unused images.
+${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo crictl images -q | xargs -n 1 sudo crictl rmi 2>/dev/null' || true
 
 # Replace pull secret with a null json string '{}'
 ${OC} --kubeconfig $1/auth/kubeconfig replace -f pull-secret.yaml
@@ -374,6 +378,8 @@ get_dest_dir
 destDirSuffix="${DEST_DIR}"
 
 libvirtDestDir="crc_libvirt_${destDirSuffix}"
+# FIXME: test early and error out if this already exists??
+# atm cause a failure with pipefail
 mkdir $libvirtDestDir
 
 create_qemu_image $libvirtDestDir
