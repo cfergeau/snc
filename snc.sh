@@ -248,6 +248,7 @@ ${YQ} write --inplace ${INSTALL_DIR}/install-config.yaml metadata.name ${CRC_VM_
 ${YQ} write --inplace ${INSTALL_DIR}/install-config.yaml compute[0].replicas 0
 ${YQ} write --inplace ${INSTALL_DIR}/install-config.yaml pullSecret "${OPENSHIFT_PULL_SECRET}"
 ${YQ} write --inplace ${INSTALL_DIR}/install-config.yaml sshKey "$(cat id_rsa_crc.pub)"
+${YQ} write --inplace ${INSTALL_DIR}/install-config.yaml -- additionalTrustBundle "$(cat /etc/pki/redhat/2015-RH-IT-Root-CA.pem)"
 
 # Create the manifests using the INSTALL_DIR
 ${OPENSHIFT_INSTALL} --dir ${INSTALL_DIR} create manifests || exit 1
