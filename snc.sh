@@ -35,6 +35,15 @@ else
     fi
 fi
 
+function preflight() {
+# check kvm?
+# check qemu version
+# check qemu+tcp:///system
+# check firewall-cmd rules
+# check api.crc.testing resolution
+# check oauth.... resolution?
+}
+
 function apply_bootstrap_etcd_hack() {
         # This is needed for now due to etcd changes in 4.4:
         # https://github.com/code-ready/snc/wiki/Workaround-for-4.4--etcd-operator-addition
