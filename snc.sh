@@ -42,6 +42,8 @@ function preflight() {
 # check firewall-cmd rules
 # check api.crc.testing resolution
 # check oauth.... resolution?
+echo huhu
+
 }
 
 function apply_bootstrap_etcd_hack() {
