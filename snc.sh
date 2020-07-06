@@ -99,6 +99,22 @@ function run_preflight_checks() {
         echo "libvirt and DNS configuration successfully checked"
 }
 
+function setup_network_manager() {
+        # Clean up old DNS overlay file
+        if [ -f /etc/NetworkManager/dnsmasq.d/openshift.conf ]; then
+            sudo rm /etc/NetworkManager/dnsmasq.d/openshift.conf
+        fi
+
+        # Set NetworkManager DNS overlay file
+        cat << EOF | sudo tee /etc/NetworkManager/dnsmasq.d/crc-snc.conf
+server=/${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.1
+address=/apps-${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.11
+EOF
+
+        # Reload the NetworkManager to make DNS overlay effective
+        sudo systemctl reload NetworkManager
+}
+
 function apply_bootstrap_etcd_hack() {
         # This is needed for now due to etcd changes in 4.4:
         # https://github.com/openshift/cluster-etcd-operator/pull/279
@@ -296,19 +312,7 @@ rm id_rsa_crc* || true
 ssh-keygen -N "" -f id_rsa_crc -C "core"
 
 
-# Clean up old DNS overlay file
-if [ -f /etc/NetworkManager/dnsmasq.d/openshift.conf ]; then
-    sudo rm /etc/NetworkManager/dnsmasq.d/openshift.conf
-fi
-
-# Set NetworkManager DNS overlay file
-cat << EOF | sudo tee /etc/NetworkManager/dnsmasq.d/crc-snc.conf
-server=/${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.1
-address=/apps-${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.11
-EOF
-
-# Reload the NetworkManager to make DNS overlay effective
-sudo systemctl reload NetworkManager
+setup_network_manager
 
 # Create the INSTALL_DIR for the installer and copy the install-config
 rm -fr ${INSTALL_DIR} && mkdir ${INSTALL_DIR} && cp install-config.yaml ${INSTALL_DIR}
