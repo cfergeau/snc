@@ -119,6 +119,14 @@ EOF
         sudo systemctl reload NetworkManager
 }
 
+# Kills the sub process quietly
+# Helper for managing background apply_bootstrap_etcd_hack
+function killsub()
+{
+    kill -9 ${1} 2>/dev/null
+    wait ${1} 2>/dev/null
+}
+
 function apply_bootstrap_etcd_hack() {
         # This is needed for now due to etcd changes in 4.4:
         # https://github.com/openshift/cluster-etcd-operator/pull/279
@@ -348,6 +356,9 @@ export OPENSHIFT_INSTALL_INVOKER="codeReadyContainers"
 export KUBECONFIG=${INSTALL_DIR}/auth/kubeconfig
 
 apply_bootstrap_etcd_hack &
+etcd_hack_pid=$!
+# Add a trap incase of unexpected interruptions
+trap 'killsub ${etcd_hack_pid}; exit' INT TERM EXIT
 
 ${OPENSHIFT_INSTALL} --dir ${INSTALL_DIR} create cluster ${OPENSHIFT_INSTALL_EXTRA_ARGS} || echo "failed to create the cluster, but that is expected.  We will block on a successful cluster via a future wait-for."
 
@@ -360,6 +371,11 @@ if [ $? -ne 0 ]; then
 'pool master is not ready - timed out waiting for the condition'
 see https://github.com/openshift/machine-config-operator/issues/579"
 fi
+
+# Kill foo after finished
+killsub ${etcd_hack_pid}
+# Reset trap
+trap - INT TERM EXIT
 
 # Set the VM static hostname to crc-xxxxx-master-0 instead of localhost.localdomain
 HOSTNAME=$(${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} hostnamectl status --transient)
