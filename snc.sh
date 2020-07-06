@@ -100,20 +100,17 @@ function run_preflight_checks() {
 }
 
 function setup_network_manager() {
+        nm_config="[main]\ndns=dnsmasq\n"
+        dnsmasq_config="server=/${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.1\naddress=/apps-${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.11\n"
+
         # Clean up old DNS overlay file
         if [ -f /etc/NetworkManager/dnsmasq.d/openshift.conf ]; then
             sudo rm /etc/NetworkManager/dnsmasq.d/openshift.conf
         fi
 
         # Set NetworkManager DNS overlay file
-        cat << EOF | sudo tee /etc/NetworkManager/conf.d/crc-snc-dnsmasq.conf
-[main]
-dns=dnsmasq
-EOF
-        cat << EOF | sudo tee /etc/NetworkManager/dnsmasq.d/crc-snc.conf
-server=/${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.1
-address=/apps-${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.11
-EOF
+        echo -e $nm_config | sudo tee /etc/NetworkManager/conf.d/crc-snc-dnsmasq.conf
+        echo -e $dnsmasq_config | sudo tee /etc/NetworkManager/dnsmasq.d/crc-snc.conf
 
         # Reload the NetworkManager to make DNS overlay effective
         sudo systemctl reload NetworkManager
