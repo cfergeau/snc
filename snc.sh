@@ -106,6 +106,10 @@ function setup_network_manager() {
         fi
 
         # Set NetworkManager DNS overlay file
+        cat << EOF | sudo tee /etc/NetworkManager/conf.d/crc-snc-dnsmasq.conf
+[main]
+dns=dnsmasq
+EOF
         cat << EOF | sudo tee /etc/NetworkManager/dnsmasq.d/crc-snc.conf
 server=/${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.1
 address=/apps-${CRC_VM_NAME}.${BASE_DOMAIN}/192.168.126.11
