@@ -228,5 +228,5 @@ function create_tarball {
     # This ensures the huge qcow2 image will be last in the archive
     ls -1 --sort=size --reverse >"$dirName"/filelist.txt
 
-    tar cSf - --verbatim-files-from=filelist.txt "$dirName" | zstd --no-progress --ultra -22 --threads=0 -o "$dirName".crcbundle
+    tar cSf - --verbatim-files-from --files-from=filelist.txt "$dirName" | ${ZSTD} --no-progress --ultra -22 --threads=0 -o "$dirName".crcbundle
 }
