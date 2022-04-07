@@ -25,7 +25,7 @@ CRC_INSTALL_DIR=crc-tmp-install-data
 rm -fr ${CRC_INSTALL_DIR}
 mkdir ${CRC_INSTALL_DIR}
 current_selinux_context=$(ls -Z | grep ${CRC_INSTALL_DIR} | cut -f1 -d" ")
-cp fcos-config.yaml ${CRC_INSTALL_DIR}
+cp podman/fcos-config.yaml ${CRC_INSTALL_DIR}
 
 # Generate a new ssh keypair for this cluster
 # Create a 521bit ECDSA Key
