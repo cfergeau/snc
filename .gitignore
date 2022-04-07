@@ -8,4 +8,5 @@ oc
 yq
 openshift-clients/
 podman-remote/
+*.crcbundle
 .sw[a-p]
