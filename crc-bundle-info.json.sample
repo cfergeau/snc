@@ -70,7 +70,7 @@
       {
         # Name of the disk image file
         "name": "crc.qcow2",
-        # Format of the disk image, valid formats are 'qcow2', 'vmdk', 'vhdx'
+        # Format of the disk image, valid formats are 'qcow2', 'raw', 'vhdx'
         "format": "qcow2"
 	"size": "9129426944"
 	"sha256sum": "49766122a0834d62c1a24fb4e0de30cd7a39b8112083aa5e01fc26f16c15aed3"
@@ -91,7 +91,7 @@
     ]
   },
   "driverInfo": {
-    # Name of driver the bundle supports, valid drivers are 'libvirt', 'hyperkit', 'virtualbox', 'hyperv'
+    # Name of driver the bundle supports, valid drivers are 'libvirt', 'hyperkit', 'vfkit', 'hyperv'
     "name": "libvirt"
   }
 }
