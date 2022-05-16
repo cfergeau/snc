@@ -14,9 +14,10 @@ CRC_ZSTD_EXTRA_FLAGS=${CRC_ZSTD_EXTRA_FLAGS:-"--ultra -22"}
 PODMAN=${PODMAN:-podman}
 VIRT_INSTALL=${VIRT_INSTALL:-virt-install}
 
-ARCH=$(uname -m)
+HOST_ARCH=$(uname -m)
+ARCH=${ARCH:-$HOST_ARCH}
 
-case "${ARCH}" in
+case "${HOST_ARCH}" in
     x86_64)
         yq_ARCH="amd64"
         SNC_GENERATE_MACOS_BUNDLE=1

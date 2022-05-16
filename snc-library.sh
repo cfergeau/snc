@@ -26,14 +26,14 @@ function run_preflight_checks() {
 	#Just warn if architecture is not supported
 	case $ARCH in
 		x86_64|ppc64le|s390x|aarch64)
-			echo "The host arch is ${ARCH}.";;
+			echo "The target arch is ${ARCH}.";;
 		*)
- 			echo "The host arch is ${ARCH}. This is not supported by SNC!";;
+			echo "The target arch is ${ARCH}. This is not supported by SNC!";;
 	esac
 
         # check for availability of a hypervisor using kvm
         if ! sudo virsh capabilities | ${XMLLINT} --xpath "/capabilities/guest/arch[@name='${ARCH}']/domain[@type='kvm']" - &>/dev/null; then
-                preflight_failure "Your ${ARCH} platform does not provide a hardware-accelerated hypervisor, it's strongly recommended to enable it before running SNC. Check virt-host-validate for more detailed diagnostics"
+                preflight_failure "Your platform does not provide a hardware-accelerated hypervisor for ${ARCH}, it's strongly recommended to enable it before running SNC. Check virt-host-validate for more detailed diagnostics"
                 return
         fi
 }
