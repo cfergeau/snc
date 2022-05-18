@@ -8,6 +8,8 @@ export LANG=C
 source tools.sh
 source createdisk-library.sh
 
+INSTALL_DIR=${1:-crc-tmp-install-data}
+
 SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_ecdsa_crc"
 SCP="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_ecdsa_crc"
 VM_IP="api.${CRC_VM_NAME}.${BASE_DOMAIN}"
@@ -19,7 +21,7 @@ then
     BASE_OS=fedora-coreos
 fi
 BASE_OS=${BASE_OS:-rhcos}
-OPENSHIFT_VERSION=$(${JQ} -r .clusterInfo.openshiftVersion $1/crc-bundle-info.json)
+OPENSHIFT_VERSION=$(${JQ} -r .clusterInfo.openshiftVersion $INSTALL_DIR/crc-bundle-info.json)
 
 # CRC_VM_NAME: short VM name to use in crc_libvirt.sh
 # BASE_DOMAIN: domain used for the cluster
@@ -90,7 +92,7 @@ if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
     kernel_cmd_line=$(${SSH} core@${VM_IP} -- 'cat /proc/cmdline')
 
     # SCP the vmlinuz/initramfs from VM to Host in provided folder.
-    ${SCP} -r core@${VM_IP}:/boot/ostree/${BASE_OS}-${ostree_hash}/* $1
+    ${SCP} -r core@${VM_IP}:/boot/ostree/${BASE_OS}-${ostree_hash}/* $INSTALL_DIR
 fi
 
 # Add internalIP as node IP for kubelet systemd unit file
@@ -129,7 +131,7 @@ mkdir "$libvirtDestDir"
 
 create_qemu_image "$libvirtDestDir" "${VM_PREFIX}-base" "${VM_PREFIX}-master-0"
 mv "${libvirtDestDir}/${VM_PREFIX}-master-0" "${libvirtDestDir}/${CRC_VM_NAME}.qcow2"
-copy_additional_files "$1" "$libvirtDestDir"
+copy_additional_files "$INSTALL_DIR" "$libvirtDestDir"
 create_tarball "$libvirtDestDir"
 
 # vfkit image generation
@@ -137,7 +139,7 @@ create_tarball "$libvirtDestDir"
 # the content of $libvirtDestDir
 if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
     vfkitDestDir="crc_vfkit_${destDirSuffix}"
-    generate_vfkit_bundle "$libvirtDestDir" "$vfkitDestDir" "$1" "$kernel_release" "$kernel_cmd_line"
+    generate_vfkit_bundle "$libvirtDestDir" "$vfkitDestDir" "$INSTALL_DIR" "$kernel_release" "$kernel_cmd_line"
 fi
 
 # HyperV image generation
@@ -150,4 +152,4 @@ if [ -n "${SNC_GENERATE_WINDOWS_BUNDLE}" ]; then
 fi
 
 # Cleanup up vmlinux/initramfs files
-rm -fr "$1/vmlinuz*" "$1/initramfs*"
+rm -fr "$INSTALL_DIR/vmlinuz*" "$INSTALL_DIR/initramfs*"
