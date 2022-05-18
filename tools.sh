@@ -48,6 +48,7 @@ if ! which ${JQ}; then
 fi
 
 # Add virt-filesystems/guestfish/qemu-img
+# This indirectly installs libvirt - probably best if we check for its presence first, and start the daemon if needed
 if ! which ${VIRT_FILESYSTEMS}; then
     sudo yum -y install /usr/bin/virt-filesystems
 fi
