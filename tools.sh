@@ -44,20 +44,20 @@ if test -z ${YQ-}; then
     YQ=./yq
 fi
 
-if ! which ${JQ}; then
+if ! command -v ${JQ}; then
     sudo yum -y install /usr/bin/jq
 fi
 
 # Add virt-filesystems/guestfish/qemu-img
-if ! which ${VIRT_FILESYSTEMS}; then
+if ! command -v ${VIRT_FILESYSTEMS}; then
     sudo yum -y install /usr/bin/virt-filesystems
 fi
 
-if ! which ${GUESTFISH}; then
+if ! command -v ${GUESTFISH}; then
     sudo yum -y install /usr/bin/guestfish
 fi
 
-if ! which ${QEMU_IMG}; then
+if ! command -v ${QEMU_IMG}; then
     sudo yum -y install /usr/bin/qemu-img
 fi
 # The CoreOS image uses an XFS filesystem
@@ -68,28 +68,28 @@ if ! rpm -q libguestfs-xfs; then
 fi
 
 if [ -n "${SNC_GENERATE_WINDOWS_BUNDLE}" ];then
-    if ! which ${UNZIP}; then
+    if ! command -v ${UNZIP}; then
         sudo yum -y install /usr/bin/unzip
     fi
 fi
 
-if ! which ${XMLLINT}; then
+if ! command -v ${XMLLINT}; then
     sudo yum -y install /usr/bin/xmllint
 fi
 
-if ! which ${DIG}; then
+if ! command -v ${DIG}; then
     sudo yum -y install /usr/bin/dig
 fi
 
-if ! which ${ZSTD}; then
+if ! command -v ${ZSTD}; then
     sudo yum -y install /usr/bin/zstd
 fi
 
-if ! which ${HTPASSWD}; then
+if ! command -v ${HTPASSWD}; then
     sudo yum -y install /usr/bin/htpasswd
 fi
 
-if ! which ${PATCH}; then
+if ! command -v ${PATCH}; then
     sudo yum -y install /usr/bin/patch
 fi
 
