@@ -10,6 +10,7 @@ source createdisk-library.sh
 
 SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_ecdsa_crc"
 SCP="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_ecdsa_crc"
+VM_IP="api.${CRC_VM_NAME}.${BASE_DOMAIN}"
 
 # If the user set OKD_VERSION in the environment, then use it to set BASE_OS
 OKD_VERSION=${OKD_VERSION:-none}
@@ -34,29 +35,29 @@ fi
 VM_PREFIX=$(get_vm_prefix ${CRC_VM_NAME})
 
 # Remove unused images from container storage
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo crictl rmi --prune'
+${SSH} core@${VM_IP} -- 'sudo crictl rmi --prune'
 
 # Get the IP of the VM
 INTERNAL_IP=$(sudo virsh domifaddr ${VM_PREFIX}-master-0 | tail -2 | head -1 | awk '{print $4}' | cut -d/ -f1)
 
 # Disable kubelet service
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- sudo systemctl disable kubelet
+${SSH} core@${VM_IP} -- sudo systemctl disable kubelet
 
 # Stop the kubelet service so it will not reprovision the pods
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- sudo systemctl stop kubelet
+${SSH} core@${VM_IP} -- sudo systemctl stop kubelet
 
 # Enable the podman.socket service for API V2
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- sudo systemctl enable podman.socket
+${SSH} core@${VM_IP} -- sudo systemctl enable podman.socket
 
 # Remove audit logs
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo find /var/log/ -iname "*.log" -exec rm -f {} \;'
+${SSH} core@${VM_IP} -- 'sudo find /var/log/ -iname "*.log" -exec rm -f {} \;'
 
 if [ -n "${SNC_GENERATE_WINDOWS_BUNDLE}" ]; then
-    prepare_hyperV api.${CRC_VM_NAME}.${BASE_DOMAIN}
+    prepare_hyperV ${VM_IP}
 fi
 
 # Add gvisor-tap-vsock and crc-dnsmasq services
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} 'sudo bash -x -s' <<EOF
+${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
   podman create --name=gvisor-tap-vsock --privileged --net=host -v /etc/resolv.conf:/etc/resolv.conf -it quay.io/crcont/gvisor-tap-vsock:3231aba53905468c22e394493a0debc1a6cc6392
   podman generate systemd --restart-policy=no gvisor-tap-vsock > /etc/systemd/system/gvisor-tap-vsock.service
   touch /var/srv/dnsmasq.conf
@@ -67,10 +68,10 @@ ${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} 'sudo bash -x -s' <<EOF
 EOF
 
 # Add dummy crio-wipe service to instance
-cat crio-wipe.service | ${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} "sudo tee -a /etc/systemd/system/crio-wipe.service"
+cat crio-wipe.service | ${SSH} core@${VM_IP} "sudo tee -a /etc/systemd/system/crio-wipe.service"
 
 # Preload routes controller
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo crictl pull quay.io/crcont/routes-controller:latest'
+${SSH} core@${VM_IP} -- 'sudo crictl pull quay.io/crcont/routes-controller:latest'
 
 # Shutdown and Start the VM after installing the hyperV daemon packages.
 # This is required to get the latest ostree layer which have those installed packages.
@@ -80,21 +81,21 @@ start_vm ${VM_PREFIX}
 # Only used for macOS bundle generation
 if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
     # Get the rhcos ostree Hash ID
-    ostree_hash=$(${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- "cat /proc/cmdline | grep -oP \"(?<=${BASE_OS}-).*(?=/vmlinuz)\"")
+    ostree_hash=$(${SSH} core@${VM_IP} -- "cat /proc/cmdline | grep -oP \"(?<=${BASE_OS}-).*(?=/vmlinuz)\"")
 
     # Get the rhcos kernel release
-    kernel_release=$(${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'uname -r')
+    kernel_release=$(${SSH} core@${VM_IP} -- 'uname -r')
 
     # Get the kernel command line arguments
-    kernel_cmd_line=$(${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'cat /proc/cmdline')
+    kernel_cmd_line=$(${SSH} core@${VM_IP} -- 'cat /proc/cmdline')
 
     # SCP the vmlinuz/initramfs from VM to Host in provided folder.
-    ${SCP} -r core@api.${CRC_VM_NAME}.${BASE_DOMAIN}:/boot/ostree/${BASE_OS}-${ostree_hash}/* $1
+    ${SCP} -r core@${VM_IP}:/boot/ostree/${BASE_OS}-${ostree_hash}/* $1
 fi
 
 # Add internalIP as node IP for kubelet systemd unit file
 # More details at https://bugzilla.redhat.com/show_bug.cgi?id=1872632
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} 'sudo bash -x -s' <<EOF
+${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
     echo '[Service]' > /etc/systemd/system/kubelet.service.d/80-nodeip.conf
     echo 'Environment=KUBELET_NODE_IP="${INTERNAL_IP}"' >> /etc/systemd/system/kubelet.service.d/80-nodeip.conf
 EOF
@@ -102,16 +103,16 @@ EOF
 # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1729603
 # TODO: Should be removed once latest podman available or the fix is backported.
 # Issue found in podman version 1.4.2-stable2 (podman-1.4.2-5.el8.x86_64)
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo rm -fr /etc/cni/net.d/100-crio-bridge.conf'
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo rm -fr /etc/cni/net.d/200-loopback.conf'
+${SSH} core@${VM_IP} -- 'sudo rm -fr /etc/cni/net.d/100-crio-bridge.conf'
+${SSH} core@${VM_IP} -- 'sudo rm -fr /etc/cni/net.d/200-loopback.conf'
 
-podman_version=$(${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'rpm -q --qf %{version} podman')
+podman_version=$(${SSH} core@${VM_IP} -- 'rpm -q --qf %{version} podman')
 
 # Remove the journal logs.
 # Note: With `sudo journalctl --rotate --vacuum-time=1s`, it doesn't
 # remove all the journal logs so separate commands are used here.
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo journalctl --rotate'
-${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo journalctl --vacuum-time=1s'
+${SSH} core@${VM_IP} -- 'sudo journalctl --rotate'
+${SSH} core@${VM_IP} -- 'sudo journalctl --vacuum-time=1s'
 
 # Shutdown the VM
 shutdown_vm ${VM_PREFIX}
