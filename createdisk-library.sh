@@ -162,6 +162,19 @@ function install_additional_packages() {
     fi
 }
 
+# This is only need for creating arm64 bundles until RHCOS switch to RHEL-9
+function install_rhel9_kernel {
+    local vm_ip=$1
+    local pkgDir=$(mktemp -d tmp-rpmXXX)
+
+    mkdir -p ${pkgDir}/packages
+    yum download --setopt=reposdir=./repos --downloadonly --downloaddir ${pkgDir}/packages kernel kernel-modules-extra --resolve
+    ${SCP} -r ${pkgDir}/packages core@${vm_ip}:/home/core/
+    ${SSH} core@${vm_ip} -- 'SYSTEMD_OFFLINE=1 sudo -E rpm-ostree override replace /home/core/packages/*.rpm'
+    ${SSH} core@${vm_ip} -- rm -fr /home/core/packages
+    rm -fr ${pkgDir}
+}
+
 function prepare_cockpit() {
     local vm_ip=$1
 
