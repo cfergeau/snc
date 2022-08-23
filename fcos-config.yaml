@@ -1,0 +1,190 @@
+version: "1.0.0"
+variant: fcos
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQ-sample
+systemd:
+  units:
+   - name: podman.socket
+     enabled: true
+   - name: zincati.service
+     mask: true
+storage:
+  # Ignition has a bug/feature? where if you make a series of dirs
+  # in one swoop, then the leading dirs are creates as root.
+  directories:
+    - path: /home/core/.config
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/.config/containers
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/.config/systemd
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/.config/systemd/user
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/.config/systemd/user/default.target.wants
+      user:
+        name: core
+      group:
+        name: core
+  links:
+    - path: /home/core/.config/systemd/user/default.target.wants/podman.socket
+      user:
+        name: core
+      group:
+        name: core
+      target: /usr/lib/systemd/user/podman.socket
+      hard: false
+    - path: /home/core/.config/systemd/user/default.target.wants/cockpit-core-user.service
+      user:
+        name: core
+      group:
+        name: core
+      target: /home/core/.config/systemd/user/cockpit-core-user.service
+      hard: false
+  files:
+      # Add systemd unit to access cockpit with local session using
+      # cockpit-bridge and adding bearer token to config
+    - path: /home/core/.config/systemd/user/cockpit-core-user.service
+      mode: 0600
+      user:
+        name: core
+      group:
+        name: core
+      contents:
+        inline: |
+          [Unit]
+          Description=Cockpit-ws for Core user
+
+          [Service]
+          ExecStart=/usr/libexec/cockpit-ws --no-tls
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+    - path: /var/lib/systemd/linger/core
+      mode: 0644
+    - path: /usr/local/share/cockpit/shell/manifest.json
+      mode: 0644
+      contents:
+        inline: |
+         {
+             "requires": {
+                 "cockpit": "137"
+             },
+             "tools": {
+                 "index": {
+                     "label": "system"
+                 }
+             }
+         }
+    - path: /usr/local/share/cockpit/shell/index.html
+      mode: 0644
+      contents:
+        inline: |
+         <html>
+           <body>
+              <meta http-equiv="refresh" content="0; url=/cockpit/@localhost/podman/index.html#">
+           </body>
+         </html>
+      # Set containers.conf up for core user to use cni networks by default instead slirp
+    - path: /home/core/.config/containers/containers.conf
+      mode: 0744
+      user:
+        name: core
+      group:
+        name: core
+      contents:
+        inline: |
+         [containers]
+         netns="bridge"
+         rootless_networking="cni"
+      # Set machine_enabled to true to indicate we're in VM
+    - path: /etc/containers/containers.conf
+      mode: 0644
+      contents:
+        inline: |
+          [engine]
+          machine_enabled=true
+    - path: /etc/NetworkManager/dispatcher.d/pre-up.d/gvisor-tap-vsock-tap-device.sh
+      mode: 0755
+      contents:
+        inline: |
+          #!/bin/sh
+
+          if [[ "$1" != "tap0" ]]; then
+              exit 0
+          fi
+          if [[ "$2" != "pre-up" ]]; then
+              exit 0
+          fi
+          nmcli device modify "$1" ipv4.method auto
+    - path: /usr/local/bin/verify-bearer-token
+      mode: 0755
+      contents:
+        inline: |
+          #!/bin/sh
+          # This file is part of CRC
+          # Note: this is a POC and should not be used in production
+          #
+          # Copyright (C) 2021 Red Hat, Inc.
+          set -eux
+          HOST="$1"
+          echo "Bearer auth attempt from $HOST" >&2
+          # FIXME: should be random
+          COOKIE=c1
+          BEARER="$(cat /home/core/cockpit-bearer-token)"
+
+          # FIXME: compute frame length (in particular for different cookie length)
+          printf '61\n\n{ "command": "authorize", "cookie": "'$COOKIE'", "challenge": "*" }'
+          read framelen
+          read channel
+          [ "$channel" = "" ]
+          read -n $((framelen - 1)) response
+          echo "got response '$response'" >&2
+
+          # looks like '{"command":"authorize","cookie":"c1","response":"Bearer 123foo"}'
+          if [ "$(echo "$response" | jq -r .cookie)" != "$COOKIE" ]; then
+              # FIXME: send proper "problem" JSON
+              echo "bad cookie" >&2
+              exit 1
+          fi
+
+          if [ "$(echo "$response" | jq -r .response)" != "Bearer $BEARER" ]; then
+              # FIXME: send proper "problem" JSON
+              echo "bad password" >&2
+              exit 1
+          fi
+
+          exec cockpit-bridge
+    - path: /etc/cockpit/cockpit.conf
+      mode: 0644
+      contents:
+        inline: |
+          [bearer]
+          command = /usr/local/bin/verify-bearer-token
+          timeout = 300
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: |
+          podman.crc.testing
+    - path: /etc/containers/registries.conf.d/999-podman-machine.conf
+      mode: 0644
+      contents:
+        inline: |
+          unqualified-search-registries=["docker.io"]
+
