@@ -6,20 +6,21 @@ export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
 
 source tools.sh
+source fakesnc-tools.sh
 source snc-library.sh
 
 # kill all the child processes for this script when it exits
 trap 'jobs=($(jobs -p)); [ -n "${jobs-}" ] && ((${#jobs})) && kill "${jobs[@]}" || true' EXIT
 
-CRC_VM_NAME=${CRC_VM_NAME:-crc-podman}
+CRC_VM_NAME=${CRC_VM_NAME:-crc-xxxxx-master-0}
 SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_ecdsa_crc"
 SCP="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_ecdsa_crc"
 
-run_preflight_checks
+#run_preflight_checks
 
 sudo virsh destroy ${CRC_VM_NAME} || true
 sudo virsh undefine --nvram ${CRC_VM_NAME} || true
-sudo rm -fr /var/lib/libvirt/images/crc-podman.qcow2
+sudo rm -fr /var/lib/libvirt/images/${CRC_VM_NAME}.qcow2
 
 CRC_INSTALL_DIR=crc-tmp-install-data
 rm -fr ${CRC_INSTALL_DIR}
@@ -56,7 +57,11 @@ create_json_description
 sudo ${VIRT_INSTALL} --name=${CRC_VM_NAME} --vcpus=2 --ram=2048 --arch=${ARCH}\
 	--import --graphics=none \
 	--qemu-commandline="-fw_cfg name=opt/com.coreos/config,file=${PWD}/${CRC_INSTALL_DIR}/fcos-config.ign" \
-	--disk=size=31,backing_store=/var/lib/libvirt/images/fedora-coreos-qemu.${ARCH}.qcow2 \
+	--disk=size=31,path=/var/lib/libvirt/images/${CRC_VM_NAME},backing_store=/var/lib/libvirt/images/crc-xxxxx-base \
 	--os-variant=fedora-coreos-stable \
 	--noautoconsole --quiet
 sleep 120
+
+${SSH} core@crc-xxxxx-master-0 -- 'sudo ln -s /usr/bin/true /usr/local/bin/crictl'
+cat fakesnc-dummy-kubelet.service  | ${SSH} core@crc-xxxxx-master-0 "sudo tee -a /etc/systemd/system/kubelet.service"
+${SSH} core@crc-xxxxx-master-0 -- 'sudo mkdir -p mkdir -p /etc/systemd/system/kubelet.service.d/'
