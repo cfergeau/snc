@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# [ ] need to create a /etc/hosts entry for api.crc.testing
+# [x] needs ./id_ecdsa_crc to access the VM
+# [ ] needs ./crc-bundle-info.json with .clusterInfo.openshiftVersion
+# [x] vm must be named crc-xxxxxx-master-0
+# 
+# [ ] ${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo crictl rmi --prune'
+# [ ] ${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo crictl pull quay.io/crcont/routes-controller:latest'
+# [x] crictl -> /bin/true
+# [ ] ${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- sudo systemctl stop kubelet
+# [x] fake service for kubelet, see "Add dummy crio-wipe service to instance"
+# [x] ${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- sudo systemctl enable podman.socket
+# [x] ${SSH} core@api.${CRC_VM_NAME}.${BASE_DOMAIN} -- 'sudo find /var/log/ -iname "*.log" -exec rm -f {} \;'
+# (unneeded since we are now fcos based?) disable macos bundle generation SNC_GENERATE_MACOS_BUNDLE (rhcos specific)
+# [ ] need to set BASE_OS to "fedora-coreos" when starting createdisk.sh
+
 set -exuo pipefail
 
 export LC_ALL=C
