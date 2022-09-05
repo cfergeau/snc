@@ -1,0 +1,13 @@
+# /etc/systemd/system/gvisor-tap-vsock.service
+[Unit]
+Description=gvisor-tap-vsock traffic forwarder
+BindsTo=sys-devices-virtual-net-crc\x2dtap0.device
+After=sys-devices-virtual-net-crc\x2dtap0.device
+
+[Service]
+Restart=on-success
+TimeoutStopSec=70
+ExecStart=/usr/local/bin/gvisor-tap-vsock-forwarder -iface crc-tap0 -preexisting
+
+[Install]
+WantedBy=default.target

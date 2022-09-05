@@ -28,11 +28,16 @@ prepare_cockpit ${VM_IP}
 prepare_hyperV ${VM_IP}
 
 # Add gvisor-tap-vsock
+${SCP} -r ./gvisor-tap-vsock core@${VM_IP}:
 ${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
-  podman create --name=gvisor-tap-vsock --privileged --net=host -v /etc/resolv.conf:/etc/resolv.conf -it quay.io/crcont/gvisor-tap-vsock:latest
-  podman generate systemd --restart-policy=no gvisor-tap-vsock > /etc/systemd/system/gvisor-tap-vsock.service
+  mv gvisor-tap-vsock/crc-tap0.nmconnection /etc/NetworkManager/system-connections/
+  mv gvisor-tap-vsock/gvisor-tap-vsock-forwarder.service /etc/systemd/system/
+  mv gvisor-tap-vsock/gvisor-tap-vsock-forwarder /usr/local/bin/
+  chmod 755 /usr/local/bin/gvisor-tap-vsock-forwarder
+  chcon --reference /usr/bin/true /usr/local/bin/gvisor-tap-vsock-forwarder
+
   systemctl daemon-reload
-  systemctl enable gvisor-tap-vsock.service
+  systemctl enable gvisor-tap-vsock-forwarder.service
 EOF
 
 # Shutdown and Start the VM after modifying the set of installed packages
