@@ -30,11 +30,12 @@ prepare_hyperV ${VM_IP}
 # Add gvisor-tap-vsock
 ${SCP} -r ./gvisor-tap-vsock core@${VM_IP}:
 ${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
-  mv gvisor-tap-vsock/crc-tap0.nmconnection /etc/NetworkManager/system-connections/
-  mv gvisor-tap-vsock/gvisor-tap-vsock-forwarder.service /etc/systemd/system/
-  mv gvisor-tap-vsock/gvisor-tap-vsock-forwarder /usr/local/bin/
+  chown -R root.root gvisor-tap-vsock
+  mv -Z gvisor-tap-vsock/crc-tap0.nmconnection /etc/NetworkManager/system-connections/
+  mv -Z gvisor-tap-vsock/gvisor-tap-vsock-forwarder.service /etc/systemd/system/
+  mv -Z gvisor-tap-vsock/gvisor-tap-vsock-forwarder /usr/local/bin/
   chmod 755 /usr/local/bin/gvisor-tap-vsock-forwarder
-  chcon --reference /usr/bin/true /usr/local/bin/gvisor-tap-vsock-forwarder
+  #chcon --reference /usr/bin/true /usr/local/bin/gvisor-tap-vsock-forwarder
 
   systemctl daemon-reload
   systemctl enable gvisor-tap-vsock-forwarder.service
