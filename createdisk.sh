@@ -36,12 +36,6 @@ ${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
   systemctl enable gvisor-tap-vsock.service
 EOF
 
-#if [ "${ARCH}" == "aarch64" ]; then
-   # aarch64 support is mainly used on Apple M1 machines which can't run a rhel8 kernel
-   # https://access.redhat.com/solutions/6545411
-   install_rhel9_kernel api.${CRC_VM_NAME}.${BASE_DOMAIN}
-#fi
-
 # Shutdown and Start the VM after modifying the set of installed packages
 # This is required to get the latest ostree layer which have those installed packages.
 shutdown_vm ${CRC_VM_NAME}
