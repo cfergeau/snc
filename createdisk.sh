@@ -67,6 +67,7 @@ get_dest_dir_suffix "${podman_version}"
 destDirSuffix="${DEST_DIR_SUFFIX}"
 
 libvirtDestDir="crc_podman_libvirt_${destDirSuffix}"
+rm -fr ${libvirtDestDir} ${libvirtDestDir}.crcbundle
 mkdir "$libvirtDestDir"
 
 create_qemu_image "$libvirtDestDir" "fedora-coreos-qemu.${ARCH}.qcow2" "${CRC_VM_NAME}.qcow2"
@@ -79,6 +80,7 @@ create_tarball "$libvirtDestDir"
 # the content of $libvirtDestDir
 if [ -n "${SNC_GENERATE_WINDOWS_BUNDLE}" ]; then
     hypervDestDir="crc_podman_hyperv_${destDirSuffix}"
+    rm -fr ${hypervDestDir} ${hypervDestDir}.crcbundle
     generate_hyperv_bundle "$libvirtDestDir" "$hypervDestDir"
 fi
 
@@ -126,6 +128,7 @@ EOF
     shutdown_vm ${CRC_VM_NAME}
 
     vfkitDestDir="crc_podman_vfkit_${destDirSuffix}"
+    rm -fr ${vfkitDestDir} ${vfkitDestDir}.crcbundle
     generate_vfkit_bundle "$libvirtDestDir" "$vfkitDestDir" "$INSTALL_DIR" "$kernel_release" "$kernel_cmd_line"
 
     # Cleanup up vmlinux/initramfs files
