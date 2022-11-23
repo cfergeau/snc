@@ -54,6 +54,7 @@ create_json_description
 
 # Start the VM using virt-install command
 sudo ${VIRT_INSTALL} --name=${CRC_VM_NAME} --vcpus=2 --ram=2048 --arch=${ARCH}\
+	--vsock cid.auto=yes \
 	--import --graphics=none \
 	--qemu-commandline="-fw_cfg name=opt/com.coreos/config,file=${PWD}/${CRC_INSTALL_DIR}/fcos-config.ign" \
 	--disk=size=31,backing_store=/var/lib/libvirt/images/fedora-coreos-qemu.${ARCH}.qcow2 \
