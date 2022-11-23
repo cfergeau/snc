@@ -41,14 +41,20 @@ EOF
 shutdown_vm ${CRC_VM_NAME}
 start_vm ${CRC_VM_NAME} ${VM_IP}
 
-# Remove miscellaneous unneeded data from rpm-ostree
-${SSH} core@${VM_IP} -- 'sudo rpm-ostree cleanup --rollback --base --repomd'
-# Shutdown and Start the VM after removing base deployment tree
-# This is required because kernel commandline changed, namely
-# ostree=/ostree/boot.1/fedora-coreos/$hash/0 which switches 
-# between boot.0 and boot.1 when cleanup is run
+${SSH} core@${VM_IP} 'bash -x -s' <<EOF
+  curl -L -O https://kojipkgs.fedoraproject.org//packages/kernel/5.18.19/200.fc36/x86_64/kernel-5.18.19-200.fc36.x86_64.rpm -L -O https://kojipkgs.fedoraproject.org//packages/kernel/5.18.19/200.fc36/x86_64/kernel-core-5.18.19-200.fc36.x86_64.rpm  -L -O https://kojipkgs.fedoraproject.org//packages/kernel/5.18.19/200.fc36/x86_64/kernel-modules-5.18.19-200.fc36.x86_64.rpm
+  sudo rpm-ostree override -C replace *.rpm
+EOF
+
 shutdown_vm ${CRC_VM_NAME}
 start_vm ${CRC_VM_NAME} ${VM_IP}
+
+${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
+  ostree admin pin 0
+  ostree admin pin 1
+  rpm-ostree rollback
+  rpm-ostree cleanup --rollback --base --repomd
+EOF
 
 # Only used for macOS bundle generation
 if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
@@ -64,6 +70,13 @@ if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
     # SCP the vmlinuz/initramfs from VM to Host in provided folder.
     ${SCP} -r core@${VM_IP}:/boot/ostree/${BASE_OS}-${ostree_hash}/* $INSTALL_DIR
 fi
+
+# Shutdown and start the VM after rpm-ostree rollback.
+# This is required because kernel/kernel commandline/initrd are
+# different between the 2 ostree deployments.
+# We want the deployment with the latest kernel to be used by default.
+shutdown_vm ${CRC_VM_NAME}
+start_vm ${CRC_VM_NAME} ${VM_IP}
 
 podman_version=$(${SSH} core@${VM_IP} -- 'rpm -q --qf %{version} podman')
 
