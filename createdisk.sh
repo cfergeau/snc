@@ -58,17 +58,20 @@ EOF
 
 # Only used for macOS bundle generation
 if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
-    # Get the rhcos ostree Hash ID
-    ostree_hash=$(${SSH} core@${VM_IP} -- "cat /proc/cmdline | grep -oP \"(?<=${BASE_OS}-).*(?=/vmlinuz)\"")
-
-    # Get the rhcos kernel release
+    kernel_cmd_line=$(${SSH} core@${VM_IP} -- 'rpm-ostree kargs --deploy-index 0')
+    ostree_hash=$(echo $kernel_cmd_line | grep -oP \"(?<=${BASE_OS}-).*(?=/vmlinuz)\")
     kernel_release=$(${SSH} core@${VM_IP} -- 'uname -r')
 
-    # Get the kernel command line arguments
-    kernel_cmd_line=$(${SSH} core@${VM_IP} -- 'cat /proc/cmdline')
-
-    # SCP the vmlinuz/initramfs from VM to Host in provided folder.
-    ${SCP} -r core@${VM_IP}:/boot/ostree/${BASE_OS}-${ostree_hash}/* $INSTALL_DIR
+    # Copy kernel/initramfs
+    # A temporary location is needed as the initramfs cannot be directly read
+    # by the 'core' user
+    ${SSH} core@${VM_IP} -- 'bash -x -s' <<EOF
+        mkdir /tmp/kernel
+        sudo cp -r /boot/ostree/${BASE_OS}-${ostree_hash}/*${kernel_release}* /tmp/kernel
+        sudo chmod 644 /tmp/kernel/initramfs*"
+EOF
+    ${SCP} -r core@${VM_IP}:/tmp/kernel/* $INSTALL_DIR
+    ${SSH} core@${VM_IP} -- "sudo rm -fr /tmp/kernel"
 fi
 
 # Shutdown and start the VM after rpm-ostree rollback.
