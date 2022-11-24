@@ -74,6 +74,10 @@ EOF
     ${SSH} core@${VM_IP} -- "sudo rm -fr /tmp/kernel"
 fi
 
+echo "kernel cmdline: $kernel_cmd_line"
+read
+read
+
 # Shutdown and start the VM after rpm-ostree rollback.
 # This is required because kernel/kernel commandline/initrd are
 # different between the 2 ostree deployments.
