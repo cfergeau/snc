@@ -44,6 +44,7 @@ start_vm ${CRC_VM_NAME} ${VM_IP}
 ${SSH} core@${VM_IP} 'bash -x -s' <<EOF
   curl -L -O https://kojipkgs.fedoraproject.org//packages/kernel/5.18.19/200.fc36/x86_64/kernel-5.18.19-200.fc36.x86_64.rpm -L -O https://kojipkgs.fedoraproject.org//packages/kernel/5.18.19/200.fc36/x86_64/kernel-core-5.18.19-200.fc36.x86_64.rpm  -L -O https://kojipkgs.fedoraproject.org//packages/kernel/5.18.19/200.fc36/x86_64/kernel-modules-5.18.19-200.fc36.x86_64.rpm
   sudo rpm-ostree override -C replace *.rpm
+  rm *.rpm
 EOF
 
 shutdown_vm ${CRC_VM_NAME}
@@ -58,8 +59,9 @@ EOF
 
 # Only used for macOS bundle generation
 if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
-    kernel_cmd_line=$(${SSH} core@${VM_IP} -- 'rpm-ostree kargs --deploy-index 0')
-    ostree_hash=$(echo $kernel_cmd_line | grep -oP \"(?<=${BASE_OS}-).*(?=/vmlinuz)\")
+    # 'rpm-ostree rollback' changed deployment indexes, the one with the older kernel is now 1
+    kernel_cmd_line="$(${SSH} core@${VM_IP} -- 'rpm-ostree kargs --deploy-index 1')"
+    ostree_hash=$(echo $kernel_cmd_line | grep -oP "(?<=ostree=/ostree/boot.[01]/${BASE_OS}/).*(?=/[01])")
     kernel_release=$(${SSH} core@${VM_IP} -- 'uname -r')
 
     # Copy kernel/initramfs
@@ -68,7 +70,7 @@ if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
     ${SSH} core@${VM_IP} -- 'bash -x -s' <<EOF
         mkdir /tmp/kernel
         sudo cp -r /boot/ostree/${BASE_OS}-${ostree_hash}/*${kernel_release}* /tmp/kernel
-        sudo chmod 644 /tmp/kernel/initramfs*"
+        sudo chmod 644 /tmp/kernel/initramfs*
 EOF
     ${SCP} -r core@${VM_IP}:/tmp/kernel/* $INSTALL_DIR
     ${SSH} core@${VM_IP} -- "sudo rm -fr /tmp/kernel"
