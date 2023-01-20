@@ -12,14 +12,33 @@ SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o Identiti
 SCP="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i id_ecdsa_crc"
 
 CRC_VM_NAME=${CRC_VM_NAME:-crc-podman}
-BASE_OS=fedora-coreos
+#BASE_OS=fedora-coreos
+BASE_OS="centos-stream9"
 
 INSTALL_DIR=${1:-crc-tmp-install-data}
 
 VM_IP=$(sudo virsh domifaddr ${CRC_VM_NAME} | grep vnet | awk '{print $4}' | sed 's;/24;;')
 
-# Remove moby-engine package
-${SSH} core@${VM_IP} -- 'sudo rpm-ostree override remove moby-engine'
+case ${BASE_OS} in
+  "centos-stream9")
+    # FIXME: Should we use this group?
+    # yum groupinfo 'Container Management'
+    # Last metadata expiration check: 0:00:13 ago on Fri 20 Jan 2023 11:19:53 AM EST.
+    # Group: Container Management
+    # Description: Tools for managing Linux containers
+    # Mandatory Packages:
+    #   buildah
+    #   containernetworking-plugins
+    #   podman
+    # Optional Packages:
+    #   python3-psutil
+    #   toolbox
+    ${SSH} core@${VM_IP} -- 'sudo yum -y install podman'
+  ;;
+  *)
+    ${SSH} core@${VM_IP} -- 'sudo rpm-ostree override remove moby-engine'
+  ;;
+esac
 
 prepare_cockpit ${VM_IP}
 prepare_hyperV ${VM_IP}

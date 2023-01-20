@@ -15,13 +15,27 @@ function cleanup_vm_image() {
     local vm_name=$1
     local vm_ip=$2
 
-    # Shutdown and Start the VM to get the latest ostree layer. If packages
-    # have been added/removed since last boot, the VM will reboot in a different ostree layer.
-    shutdown_vm ${vm_name}
-    start_vm ${vm_name} ${vm_ip}
+    case ${BASE_OS} in
+      "centos-stream9")
+        ${SSH} core@${vm_ip} -- 'sudo yum clean all'
+      ;;
+      *)
+        # Shutdown and Start the VM to get the latest ostree layer. If packages
+        # have been added/removed since last boot, the VM will reboot in a different ostree layer.
+        shutdown_vm ${vm_name}
+        start_vm ${vm_name} ${vm_ip}
 
-    # Remove miscellaneous unneeded data from rpm-ostree
-    ${SSH} core@${vm_ip} -- 'sudo rpm-ostree cleanup --rollback --base --repomd'
+        # Remove miscellaneous unneeded data from rpm-ostree
+        ${SSH} core@${vm_ip} -- 'sudo rpm-ostree cleanup --rollback --base --repomd'
+
+        # Shutdown and Start the VM after removing base deployment tree
+        # This is required because kernel commandline changed, namely
+        # ostree=/ostree/boot.1/fedora-coreos/$hash/0 which switches
+        # between boot.0 and boot.1 when cleanup is run
+        shutdown_vm ${vm_name}
+        start_vm ${vm_name} ${vm_ip}
+      ;;
+    esac
 
     # Remove logs.
     # Note: With `sudo journalctl --rotate --vacuum-time=1s`, it doesn't
@@ -30,12 +44,6 @@ function cleanup_vm_image() {
     ${SSH} core@${VM_IP} -- 'sudo journalctl --vacuum-time=1s'
     ${SSH} core@${vm_ip} -- 'sudo find /var/log/ -iname "*.log" -exec rm -f {} \;'
 
-    # Shutdown and Start the VM after removing base deployment tree
-    # This is required because kernel commandline changed, namely
-    # ostree=/ostree/boot.1/fedora-coreos/$hash/0 which switches
-    # between boot.0 and boot.1 when cleanup is run
-    shutdown_vm ${vm_name}
-    start_vm ${vm_name} ${vm_ip}
 }
 
 function sparsify {
@@ -151,30 +159,36 @@ function copy_additional_files {
 function install_additional_packages() {
     local vm_ip=$1
     shift
-    if [[ ${BASE_OS} = "fedora-coreos" ]]; then
-        ${SSH} core@${vm_ip} -- 'sudo sed -i -z s/enabled=0/enabled=1/ /etc/yum.repos.d/fedora.repo'
-        ${SSH} core@${vm_ip} -- 'sudo sed -i -z s/enabled=0/enabled=1/ /etc/yum.repos.d/fedora-updates.repo'
-        ${SSH} core@${vm_ip} -- "sudo rpm-ostree install --allow-inactive $*"
-        ${SSH} core@${vm_ip} -- 'sudo sed -i -z s/enabled=1/enabled=0/ /etc/yum.repos.d/fedora.repo'
-        ${SSH} core@${vm_ip} -- 'sudo sed -i -z s/enabled=1/enabled=0/ /etc/yum.repos.d/fedora-updates.repo'
-    else
-        # Download the hyperV daemons dependency on host
-        local pkgDir=$(mktemp -d tmp-rpmXXX)
-        mkdir -p ${pkgDir}/packages
-        sudo yum download --downloadonly --downloaddir ${pkgDir}/packages "$*" --resolve
+    case ${BASE_OS} in
+      "centos-stream9")
+          ${SSH} core@${vm_ip} -- "sudo yum -y install $*"
+      ;;
+      "fedora-coreos")
+          ${SSH} core@${vm_ip} -- 'sudo sed -i -z s/enabled=0/enabled=1/ /etc/yum.repos.d/fedora.repo'
+          ${SSH} core@${vm_ip} -- 'sudo sed -i -z s/enabled=0/enabled=1/ /etc/yum.repos.d/fedora-updates.repo'
+          ${SSH} core@${vm_ip} -- "sudo rpm-ostree install --allow-inactive $*"
+          ${SSH} core@${vm_ip} -- 'sudo sed -i -z s/enabled=1/enabled=0/ /etc/yum.repos.d/fedora.repo'
+          ${SSH} core@${vm_ip} -- 'sudo sed -i -z s/enabled=1/enabled=0/ /etc/yum.repos.d/fedora-updates.repo'
+      ;;
+      *)
+          # Download the packages on the host
+          local pkgDir=$(mktemp -d tmp-rpmXXX)
+          mkdir -p ${pkgDir}/packages
+          sudo yum download --downloadonly --downloaddir ${pkgDir}/packages "$*" --resolve
 
-        # SCP the downloaded rpms to VM
-        ${SCP} -r ${pkgDir}/packages core@${vm_ip}:/home/core/
+          # SCP the downloaded rpms to VM
+          ${SCP} -r ${pkgDir}/packages core@${vm_ip}:/home/core/
 
-        # Install these rpms to VM
-        ${SSH} core@${vm_ip} -- 'sudo rpm-ostree install /home/core/packages/*.rpm'
+          # Install these rpms to VM
+          ${SSH} core@${vm_ip} -- 'sudo rpm-ostree install /home/core/packages/*.rpm'
 
-        # Remove the packages from VM
-        ${SSH} core@${vm_ip} -- rm -fr /home/core/packages
+          # Remove the packages from VM
+          ${SSH} core@${vm_ip} -- rm -fr /home/core/packages
 
-        # Cleanup up packages
-        rm -fr ${pkgDir}
-    fi
+          # Cleanup up packages
+          rm -fr ${pkgDir}
+      ;;
+    esac
 }
 
 function downgrade_kernel() {
