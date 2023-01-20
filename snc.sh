@@ -79,3 +79,15 @@ sudo ${VIRT_INSTALL} --name=${CRC_VM_NAME} --vcpus=2 --ram=2048 --arch=${ARCH}\
         --os-variant=centos-stream9 \
 	--noautoconsole --quiet
 sleep 120
+
+SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i id_ecdsa_crc"
+BASE_OS=centos-stream9
+INSTALL_DIR=${1:-crc-tmp-install-data}
+VM_IP=$(sudo virsh domifaddr ${CRC_VM_NAME} | grep vnet | awk '{print $4}' | sed 's;/24;;')
+${SSH} root@${VM_IP} 'sudo bash -x -s' <<EOF
+  useradd core
+  cp -a /root/.ssh /home/core/
+  chown -R core.core /home/core/.ssh
+  rm -rf /root/.ssh
+  echo 'core ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/core
+EOF
