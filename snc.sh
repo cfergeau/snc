@@ -40,9 +40,11 @@ MIRROR="https://cloud.centos.org/centos/9-stream/${ARCH}/"
 latest_image=$((curl --silent "${MIRROR}/images/?C=M;O=D"; true) | grep --max-count=1 GenericCloud.*qcow2\" | sed 's/.*<a href="\(.*.qcow2\)".*>/\1/')
 echo "${latest_image}"
 if [ ! -e ${latest_image} ]; then
+	rm CentOS-Stream-GenericCloud-9.*.${ARCH}.qcow2
 	curl -L -O "${MIRROR}/images/${latest_image}"
 fi
-sudo mv ${CRC_INSTALL_DIR}/tmp/CentOS-Stream-GenericCloud-9-*.${ARCH}.qcow2 /var/lib/libvirt/images/CentOS-Stream-GenericCloud-9.${ARCH}.qcow2
+ln ${latest_image} ${CRC_INSTALL_DIR}/tmp/CentOS-Stream-GenericCloud-9.${ARCH}.qcow2
+sudo mv ${CRC_INSTALL_DIR}/tmp/CentOS-Stream-GenericCloud-9.${ARCH}.qcow2 /var/lib/libvirt/images/
 rmdir ${PWD}/${CRC_INSTALL_DIR}/tmp/
 
 #sudo setfacl -m u:qemu:rx $HOME
