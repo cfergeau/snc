@@ -88,8 +88,12 @@ fi
 # the content of $libvirtDestDir
 if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
     start_vm ${CRC_VM_NAME} ${VM_IP}
-    downgrade_kernel ${VM_IP} ${yq_ARCH}
-    cleanup_vm_image ${CRC_VM_NAME} ${VM_IP}
+    case ${BASE_OS} in
+      "fedora-coreos")
+	# due to a bug in macOS 12 bugs/newer kernels, we need to use older kernels
+        downgrade_kernel ${VM_IP} ${yq_ARCH}
+      ;;
+    esac
 
     # Get the rhcos kernel release
     kernel_release=$(${SSH} core@${VM_IP} -- 'uname -r')
@@ -97,19 +101,29 @@ if [ -n "${SNC_GENERATE_MACOS_BUNDLE}" ]; then
     # Get the kernel command line arguments
     kernel_cmd_line=$(${SSH} core@${VM_IP} -- 'cat /proc/cmdline')
 
-    # Get the rhcos ostree Hash ID
-    ostree_hash=$(echo ${kernel_cmd_line} | grep -oP "(?<=${BASE_OS}-).*(?=/vmlinuz)")
+    case ${BASE_OS} in
+      "fedora-coreos")
+        ostree_hash=$(echo ${kernel_cmd_line} | grep -oP "(?<=${BASE_OS}-).*(?=/vmlinuz)")
+	kernel_path="/boot/ostree/${BASE_OS}-${ostree_hash}"
+      ;;
+      *)
+	kernel_path="/boot"
+      ;;
+    esac
 
     # Copy kernel/initramfs
     # A temporary location is needed as the initramfs cannot be directly read
     # by the 'core' user
     ${SSH} core@${VM_IP} -- 'bash -x -s' <<EOF
       mkdir /tmp/kernel
-      sudo cp -r /boot/ostree/${BASE_OS}-${ostree_hash}/*${kernel_release}* /tmp/kernel
+      sudo cp -r "${kernel_path}/vmlinuz-${kernel_release}" "${kernel_path}/initramfs-${kernel_release}.img" /tmp/kernel
       sudo chmod 644 /tmp/kernel/initramfs*
 EOF
     ${SCP} -r core@${VM_IP}:/tmp/kernel/* $INSTALL_DIR
     ${SSH} core@${VM_IP} -- "sudo rm -fr /tmp/kernel"
+
+    cleanup_vm_image ${CRC_VM_NAME} ${VM_IP}
+    shutdown_vm ${CRC_VM_NAME}
 
     vfkitDestDir="crc_podman_vfkit_${destDirSuffix}"
     generate_vfkit_bundle "$libvirtDestDir" "$vfkitDestDir" "$INSTALL_DIR" "$kernel_release" "$kernel_cmd_line"
