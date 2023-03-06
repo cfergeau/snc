@@ -206,10 +206,11 @@ function prepare_hyperV() {
             echo 'CONST{virt}=="microsoft", RUN{builtin}+="kmod load hv_sock"' > /etc/udev/rules.d/90-crc-vsock.rules
 EOF
 }
-function prepare_qemu_guest_agent() {
+
+function fix_selinux_policy_for_qemu_guest_agent() {
     local vm_ip=$1
 
-    # f36+ default selinux policy blocks usage of qemu-guest-agent over vsock, we have to install
+    # RHEL default selinux policy blocks usage of qemu-guest-agent over vsock, we have to install
     # our own selinux rules to allow this.
     #
     # we need to disable pipefail for the `checkmodule | grep check` as we expect `checkmodule`
@@ -225,6 +226,15 @@ function prepare_qemu_guest_agent() {
 
     ${SCP} qemuga-vsock.pp core@${vm_ip}:
     ${SSH} core@${vm_ip} 'sudo semodule -i qemuga-vsock.pp && rm qemuga-vsock.pp'
+}
+
+function prepare_qemu_guest_agent() {
+    local vm_ip=$1
+
+    if [[ ${BASE_OS} != "fedora-coreos" ]]; then
+        fix_selinux_policy_for_qemu_guest_agent ${vm_ip}
+    fi
+
     ${SCP} qemu-guest-agent.service core@${vm_ip}:
     ${SSH} core@${vm_ip} 'sudo mv -Z qemu-guest-agent.service /etc/systemd/system/'
     ${SSH} core@${vm_ip} 'sudo systemctl daemon-reload'
