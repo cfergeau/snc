@@ -24,8 +24,13 @@ sudo rm -fr /var/lib/libvirt/images/crc-podman.qcow2
 CRC_INSTALL_DIR=crc-tmp-install-data
 rm -fr ${CRC_INSTALL_DIR}
 mkdir ${CRC_INSTALL_DIR}
+setfacl --default -m u:qemu:rx ${CRC_INSTALL_DIR}
 chcon --verbose unconfined_u:object_r:svirt_home_t:s0 ${CRC_INSTALL_DIR}
 cp fcos-config.yaml ${CRC_INSTALL_DIR}
+getfacl ${HOME}
+getfacl ${CRC_INSTALL_DIR}
+getfacl ${CRC_INSTALL_DIR}/fcos-config.yaml
+
 
 # Generate a new ssh keypair for this cluster
 # Create a 521bit ECDSA Key
@@ -46,10 +51,45 @@ ${PODMAN} run --pull=always --rm -v ${PWD}/${CRC_INSTALL_DIR}/tmp/:/data:Z -w /d
 sudo mv ${CRC_INSTALL_DIR}/tmp/fedora-coreos-*-qemu.${ARCH}.qcow2 /var/lib/libvirt/images/fedora-coreos-qemu.${ARCH}.qcow2
 rmdir ${PWD}/${CRC_INSTALL_DIR}/tmp/
 
-sudo setfacl -m u:qemu:rx $HOME
+create_json_description
+
+getfacl ${HOME}
+getfacl ${CRC_INSTALL_DIR}
+getfacl ${CRC_INSTALL_DIR}/fcos-config.yaml
+
+# Start the VM using virt-install command
+sudo ${VIRT_INSTALL} --name=${CRC_VM_NAME} --vcpus=2 --ram=2048 --arch=${ARCH}\
+	--import --graphics=none \
+	--qemu-commandline="-fw_cfg name=opt/com.coreos/config,file=${PWD}/${CRC_INSTALL_DIR}/fcos-config.ign" \
+	--disk=size=31,backing_store=/var/lib/libvirt/images/fedora-coreos-qemu.${ARCH}.qcow2 \
+	--os-variant=fedora-coreos-stable \
+	--noautoconsole --quiet
+
+
 sudo systemctl restart libvirtd
 
-create_json_description
+getfacl ${HOME}
+getfacl ${CRC_INSTALL_DIR}
+getfacl ${CRC_INSTALL_DIR}/fcos-config.yaml
+
+# Start the VM using virt-install command
+sudo ${VIRT_INSTALL} --name=${CRC_VM_NAME} --vcpus=2 --ram=2048 --arch=${ARCH}\
+	--import --graphics=none \
+	--qemu-commandline="-fw_cfg name=opt/com.coreos/config,file=${PWD}/${CRC_INSTALL_DIR}/fcos-config.ign" \
+	--disk=size=31,backing_store=/var/lib/libvirt/images/fedora-coreos-qemu.${ARCH}.qcow2 \
+	--os-variant=fedora-coreos-stable \
+	--noautoconsole --quiet
+
+sudo virsh destroy ${CRC_VM_NAME} || true
+sudo virsh undefine --nvram ${CRC_VM_NAME} || true
+sudo rm -fr /var/lib/libvirt/images/crc-podman.qcow2
+
+sudo setfacl -m u:qemu:rx --recursive ${CRC_INSTALL_DIR}
+sudo systemctl restart libvirtd
+
+getfacl ${HOME}
+getfacl ${CRC_INSTALL_DIR}
+getfacl ${CRC_INSTALL_DIR}/fcos-config.yaml
 
 # Start the VM using virt-install command
 sudo ${VIRT_INSTALL} --name=${CRC_VM_NAME} --vcpus=2 --ram=2048 --arch=${ARCH}\
