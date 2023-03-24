@@ -25,12 +25,36 @@ prepare_cockpit ${VM_IP}
 prepare_hyperV ${VM_IP}
 prepare_qemu_guest_agent ${VM_IP}
 
+# create the tap device interface with specified mac address
+# this mac addresss is used to allocate a specific IP to the VM
+# when tap device is in use.
+${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
+  nmcli connection add type tun ifname tap0 con-name tap0 mode tap autoconnect yes 802-3-ethernet.cloned-mac-address 5A:94:EF:E4:0C:EE
+EOF
+
 # Add gvisor-tap-vsock
 ${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
-  podman create --name=gvisor-tap-vsock --privileged --net=host -v /etc/resolv.conf:/etc/resolv.conf -it quay.io/crcont/gvisor-tap-vsock:latest
-  podman generate systemd --restart-policy=no gvisor-tap-vsock > /etc/systemd/system/gvisor-tap-vsock.service
+  podman create --name=gvisor-tap-vsock quay.io/crcont/gvisor-tap-vsock:latest
+  mkdir -p /usr/libexec/podman/
+  podman cp gvisor-tap-vsock:/vm /usr/libexec/podman/gvforwarder
+  podman rm gvisor-tap-vsock
+  tee /etc/systemd/system/gv-user-network@.service <<TEE
+[Unit]
+Description=gvisor-tap-vsock Network Traffic Forwarder
+After=NetworkManager.service
+BindsTo=sys-devices-virtual-net-%i.device
+After=sys-devices-virtual-net-%i.device
+
+[Service]
+Environment=GV_VSOCK_PORT="1024"
+EnvironmentFile=-/etc/sysconfig/gv-user-network
+ExecStart=/usr/libexec/podman/gvforwarder -preexisting -iface %i -url vsock://2:\\\${GV_VSOCK_PORT}/connect
+
+[Install]
+WantedBy=multi-user.target
+TEE
   systemctl daemon-reload
-  systemctl enable gvisor-tap-vsock.service
+  systemctl enable gv-user-network@tap0.service
 EOF
 
 cleanup_vm_image ${CRC_VM_NAME} ${VM_IP}
