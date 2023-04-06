@@ -1,6 +1,7 @@
 #!/bin/bash
 
 JQ=${JQ:-jq}
+YQ=${YQ:-./yq}
 
 QEMU_IMG=${QEMU_IMG:-qemu-img}
 VIRT_FILESYSTEMS=${VIRT_FILESYSTEMS:-virt-filesystems}
@@ -34,10 +35,12 @@ case "${ARCH}" in
 	;;
 esac
 
+yq_version=v4.33.2
+
 # Download yq/jq for manipulating in place yaml configs
-if test -z ${YQ-}; then
+if ! which ${YQ} || ! ${YQ} -V | grep -q "${yq_version}$"; then
     echo "Downloading yq binary to manipulate yaml files"
-    curl -L https://github.com/mikefarah/yq/releases/download/v4.33.2/yq_linux_${yq_ARCH} -o yq
+    curl -L https://github.com/mikefarah/yq/releases/download/${yq_version}/yq_linux_${yq_ARCH} -o yq
     chmod +x yq
     YQ=./yq
 fi
