@@ -1,6 +1,5 @@
 #!/bin/bash
 
-JQ=${JQ:-jq}
 YQ=${YQ:-./yq}
 
 QEMU_IMG=${QEMU_IMG:-qemu-img}
@@ -44,10 +43,7 @@ if ! which ${YQ} || ! ${YQ} -V | grep -q "${yq_version}$"; then
     chmod +x yq
     YQ=./yq
 fi
-
-if ! which ${JQ}; then
-    sudo yum -y install /usr/bin/jq
-fi
+JQ="${YQ} -ojson"
 
 # Add virt-filesystems/guestfish/qemu-img
 if ! which ${VIRT_FILESYSTEMS}; then
