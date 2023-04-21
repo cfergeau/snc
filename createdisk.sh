@@ -53,10 +53,10 @@ wait_for_ssh ${VM_NAME} ${VM_IP}
 if [ ${BUNDLE_TYPE} != "microshift" ]; then
     # Remove unused images from container storage
     ${SSH} core@${VM_IP} -- 'sudo crictl rmi --prune'
-    
+
     # Disable kubelet service
     ${SSH} core@${VM_IP} -- sudo systemctl disable kubelet
-    
+
     # Stop the kubelet service so it will not reprovision the pods
     ${SSH} core@${VM_IP} -- sudo systemctl stop kubelet
 fi
@@ -110,27 +110,30 @@ EOF
 # Add gvisor-tap-vsock and crc-dnsmasq services
 ${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
   podman create --name=gvisor-tap-vsock quay.io/crcont/gvisor-tap-vsock:latest
-  podman cp gvisor-tap-vsock:/vm /usr/local/bin/
+  podman cp gvisor-tap-vsock:/vm /usr/local/bin/gvforwarder
   podman rm gvisor-tap-vsock
-  tee /etc/systemd/system/gvisor-tap-vsock.service <<ETE
+  tee /etc/systemd/system/gv-user-network@.service <<TEE
 [Unit]
-Description=gvisor-tap-vsock traffic forwarder
-Wants=network-online.target
-After=network-online.target
+Description=gvisor-tap-vsock Network Traffic Forwarder
+After=NetworkManager.service
+BindsTo=sys-devices-virtual-net-%i.device
+After=sys-devices-virtual-net-%i.device
 
 [Service]
-Restart=on-failure
-TimeoutStopSec=70
-ExecStart=/usr/local/bin/vm -preexisting -debug
+Environment=GV_VSOCK_PORT="1024"
+EnvironmentFile=-/etc/sysconfig/gv-user-network
+ExecStart=/usr/local/bin/gvforwarder -preexisting -iface %i -url vsock://2:\\\${GV_VSOCK_PORT}/connect
 
 [Install]
-WantedBy=default.target
-ETE
+WantedBy=multi-user.target
+TEE
+  systemctl daemon-reload
+  systemctl enable gv-user-network@tap0.service
+
   touch /var/srv/dnsmasq.conf
   podman create --ip 10.88.0.8 --name crc-dnsmasq -v /var/srv/dnsmasq.conf:/etc/dnsmasq.conf -p 53:53/udp --privileged quay.io/crcont/dnsmasq:${image_tag}
   podman generate systemd --restart-policy=no crc-dnsmasq > /etc/systemd/system/crc-dnsmasq.service
   systemctl daemon-reload
-  systemctl enable gvisor-tap-vsock.service
 EOF
 
 # Add dummy crio-wipe service to instance
