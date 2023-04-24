@@ -35,8 +35,7 @@ EOF
 # Add gvisor-tap-vsock
 ${SSH} core@${VM_IP} 'sudo bash -x -s' <<EOF
   podman create --name=gvisor-tap-vsock quay.io/crcont/gvisor-tap-vsock:latest
-  mkdir -p /usr/libexec/podman/
-  podman cp gvisor-tap-vsock:/vm /usr/libexec/podman/gvforwarder
+  podman cp gvisor-tap-vsock:/vm /usr/local/bin/gvforwarder
   podman rm gvisor-tap-vsock
   tee /etc/systemd/system/gv-user-network@.service <<TEE
 [Unit]
@@ -48,7 +47,7 @@ After=sys-devices-virtual-net-%i.device
 [Service]
 Environment=GV_VSOCK_PORT="1024"
 EnvironmentFile=-/etc/sysconfig/gv-user-network
-ExecStart=/usr/libexec/podman/gvforwarder -preexisting -iface %i -url vsock://2:\\\${GV_VSOCK_PORT}/connect
+ExecStart=/usr/local/bin/gvforwarder -preexisting -iface %i -url vsock://2:\\\${GV_VSOCK_PORT}/connect
 
 [Install]
 WantedBy=multi-user.target
