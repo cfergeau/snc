@@ -13,12 +13,6 @@ INSTALL_DIR=crc-tmp-install-data
 SNC_PRODUCT_NAME=${SNC_PRODUCT_NAME:-crc}
 BASE_DOMAIN=${CRC_BASE_DOMAIN:-testing}
 MIRROR=${MIRROR:-https://mirror.openshift.com/pub/openshift-v4/$ARCH/clients/ocp}
-MICROSHIFT_NVR=${MICROSHIFT_NVR:-}
-
-if [ ! -n "${MICROSHIFT_NVR}" ]; then
-    echo "Please specify MICROSHIFT_NVR, which you can get from internal brew (ex. microshift-4.12.5-202302222013.p0.g0165ac4.assembly.4.12.5.el8 )"
-    exit 1
-fi
 
 if ! grep -q -i "release 9" /etc/redhat-release
 then
@@ -73,7 +67,11 @@ function enable_repos {
 function download_microshift_rpm {
     local pkgDir=$1
     pushd ${pkgDir}
-    brew download-build --quiet --arch noarch --arch ${ARCH} ${MICROSHIFT_NVR}
+    if [ -n "${MICROSHIFT_NVR-}" ]; then
+        yum download --downloadonly microshift-${MICROSHIFT_NVR-}
+    else
+        yum download --downloadonly microshift
+    fi
     popd
 }
 
