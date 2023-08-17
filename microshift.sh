@@ -70,13 +70,14 @@ function enable_repos {
 
 function download_microshift_rpm {
     local pkgDir=$1
+    local extraOpts=""
+    local nvrSuffix=""
     if [ -n "${MICROSHIFT_PRERELEASE-}" ]; then
-        sudo yum download --setopt=reposdir=./repos --downloadonly --downloaddir ${pkgDir} microshift microshift-networking microshift-release-info microshift-selinux microshift-greenboot
+        extraOpts="--setopt=reposdir=./repos"
     elif [ -n "${MICROSHIFT_NVR-}" ]; then
-        sudo yum download --downloaddir ${pkgDir} --downloadonly microshift-${MICROSHIFT_NVR-} microshift-networking-${MICROSHIFT_NVR-} microshift-release-info-${MICROSHIFT_NVR-} microshift-selinux-${MICROSHIFT_NVR-} microshift-greenboot-${MICROSHIFT_NVR-}
-    else
-        sudo yum download --downloaddir ${pkgDir} --downloadonly microshift microshift-networking microshift-release-info microshift-selinux microshift-greenboot
+        nvrSuffix="-${MICROSHIFT_NVR-}"
     fi
+    sudo yum download ${extraOpts} --downloaddir ${pkgDir} --downloadonly microshift${nvrSuffix} microshift-networking${nvrSuffix} microshift-release-info${nvrSuffix} microshift-selinux${nvrSuffix} microshift-greenboot${nvrSuffix}
 }
 
 function create_iso {
